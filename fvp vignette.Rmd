@@ -1,0 +1,595 @@
+---
+title: "Introduction to fvp"
+author: "Aaron Pearson"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to fvp}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+
+
+
+library(fvp)
+library(ggplot2)
+library(patchwork)
+library(midsprint)
+
+theme_set(theme_minimal())
+
+player.one <- player_a
+```
+
+The fvp package was written to extend the functionality of its predecessory, *midsprint*. Users can use this package to model and athlete's sprint- and jump-based force-velocity profile. These models include:    
+     
+* Sprint abilities modelled over time and distance
+* In-game speed-acceleration model
+* Sprint test models using distance and time splits
+* Jump-based force-velocity model
+    
+Once a player's abilities are modelled, the user can opt to return a data set that encompasses their modelled force-velocity-power profile.
+    
+Since this package is built to provide practitioners modelled observations, the package does not support plotting functions like those in *midsprint*. As such, *midsprint* will be updated to include these reporting functions with *fvp* providing the back-end analyses. 
+
+## Topics Covered
+
+1. Installing the Package    
+1. Package Functionality    
+1. Sample Code
+1. Extending the Package
+1. Citing fvp
+
+## Installing the Package
+
+To install the package, copy-and-paste the following code into your R console. The package is very small and should download quickly.
+
+```{r download, eval = FALSE, include = TRUE}
+devtools::install_github("aaronzpearson/fvp")
+library(fvp)
+```
+
+The plotting examples rely on two other packages to return aesthetically pleasing plots. If you don't have these packages installed on your computer, you can download them copy-and-pasting the following into your R console. You do not need to install these packages for the package to work.
+
+```{r plotting-setup, eval = FALSE, include = TRUE}
+install.packages("ggplot2")
+install.packages("patchwork")
+
+library(ggplot2)
+library(patchwork)
+```
+
+
+## Package Functionality
+
+**Note** The models have been validated using values in metric (m/s, m/s/s, etc.). To convert your current values to metric, use the `convert.to.metric()` function. This function can be applied to multiple variables effectively using a function like `apply()` from base R or `mutate()` from the *dplyr* package.
+
+### Function Families
+    
+To provide practitioners the ability to produce multiple analyses, functions are grouped by *family*. As such, each family of functions begins with the same prefix. Expanding on the models outlined above, the prefixes are:
+    
+* `gps`: Sprint abilities modelled over time and distance
+* `sa`: In-game speed-acceleration model
+* `scout`: Sprint test models using distance and time splits
+* `fv`: Jump-based force-velocity model
+* `fvp`: Modelled force-velocity-power profile from sprint models
+
+### Function Naming Conventions
+
+For consistency, the function names (after the prefix) follow the following naming convention:
+    
+* `.data`: Cleaned and formatted speed and acceleration observations
+* `.data.player`: A player's anthropomorphic data and weather conditions
+* `.data.testing`: Supplemental testing information like load and athlete testing results
+* `.player.profile`: Models a player's abilities and returns a summarized data frame 
+* `.player.profile.game `: Unique to the *gps* family, returns a player's observed sprint abilities
+* `.player.splits`: Speed, acceleration, and time at distinct distances
+* `.results.model`: Data set containing modelled observations
+* `.results.observed`: Data set containing observations that are used to model a player's abilities
+* `.results.game`: Unique to the *gps* family, returns a player's modelled in-game abilities
+* `.results.fitted`: Unique to the *sa* family, returns the data that were maintained to fit the linear model
+
+
+There are supplementary functions that are also included that do not belong to a particular family. These generic functions can be applied to any family of functions.
+
+## Sample Code
+
+This vignette provides sample code for all five modelling families. Although some steps seem redundant, it is important to note that similar functions that are in different families often work differently on the back-end. It is highly recommended to use the functions within the same family when working on a given model.  
+
+Every family starts with the `.data` function to clean and process the data. Unlike *midsprint*, the modelled results do not need practitioners to input a player's profile. It was decided that removing the need to build player profiles for subsequent analyses minimizes the time needed to model a player's abilities. 
+
+The analyses below are completed using the following sample data: player.one is tracking data, player.forty is a player's 40 yard dash sprint test, and player.jump is a player's jump-test results.
+
+```{r}
+head(player.one)
+```
+
+```{r}
+player.forty <- data.frame(distance = c(9.14, 18.3, 36.6),
+                           split.time = c(1.66, 2.67, 4.72))
+player.forty
+```
+
+
+```{r}
+player.jump <- data.frame(percent.bw = c(0, 25, 50, 75),
+                          add.mass = c(0, 20.6, 41.2, 61.8),
+                          trial.one = c(0.34, 0.29, 0.21, 0.18),
+                          trial.two = c(0.35, 0.28, 0.19, 0.18),
+                          trial.three = c(0.34, 0.29, 0.20, 0.17))
+player.jump
+```
+
+
+**Note** The arguments `trial.one`, `trial.two`, and `trial.three` are for every condition. That is, `trial.one` should contain the results for all of the player's first trial results for all conditions. To avoid confusion, the `trial.` arguments can take-on a vector that contains all of the first trial results. Therefore, the user is encouraged to put all results into a table and set the `trial.` arguments as something like `player.one$jump.trial.one`.
+
+## `gps.` Player Tracking
+
+**Clean and Process**
+
+```{r}
+player.one.gps <- gps.data(player.one$speed, player.one$accel)
+head(player.one.gps)
+```
+
+**Player Profile**
+
+`gps.player.profile()` returns the player's name and their potential max speed, max acceleration, and acceleration constant.
+
+```{r}
+player.one.gps.profile <- gps.player.profile(player.name = "Player 1 GPS",
+                                             game.data = player.one.gps)
+player.one.gps.profile
+```
+
+`gps.player.profile.game()` return's the player's name and their observed max speed, max acceleration, and acceleration constant.
+
+```{r}
+player.one.game.profile <- gps.player.profile.game(player.name = "Player 1 GAME",
+                                                   game.data = player.one.gps)
+player.one.game.profile
+```
+
+**Modelling**
+
+`gps.results.model()` returns the player modelled potential sprint ability
+
+```{r}
+player.one.gps.model <- gps.results.model(game.data = player.one.gps, 
+                                          sample.rate = 10)
+head(player.one.gps.model)
+```
+
+`gps.results.observed()` returns the observations that make-up the player's best sprint. The function includes the arguments `min.speed` and `max.speed.threshold`. `min.speed` is the speed that the function should consider the start of the sprint. Since players are constantly moving, a velocity of 0 m/s is not realistic. Therefore, a minimum speed of 0.3 m/s is pre-set as the starting speed of a player's sprint. `max.speed.threshold` is the percent of max speed in the data set that should be considered the end of the sprint. This is to provide some flexibility when trying to isolate a player's on-field maximal effort. Since players reach max speed once or twice a game, it is unrealistic to have the `max.speed.threshold` set to 100%. 
+
+This function returns the observations that make up the players fastest time from their `min.speed` to their `max.speed.threshold`.
+
+```{r}
+player.one.gps.observed <- gps.results.observed(game.data = player.one.gps, 
+                                                min.speed = 0.3, 
+                                                max.speed.threshold = 95, 
+                                                sample.rate = 10)
+head(player.one.gps.observed)
+```
+
+
+`gps.results.game()` returns the player's modelled actual sprint ability.
+
+```{r}
+player.one.gps.game <- gps.results.game(game.data = player.one.gps, 
+                                        sample.rate = 10)
+head(player.one.gps.game)
+```
+
+**Plotting**
+
+Below is an example of the plots users can create from the modelled data. This plot compares the player's potential, observed, and modelled best-sprint abilities.
+
+```{r, fig.height=5, fig.width=7, fig.align='center'}
+p1 <- ggplot() +
+  
+  geom_point(data = player.one.gps.observed, # observed best-sprint
+             aes(x = split.time, y = observed.speed),
+             colour = "grey") + 
+  
+  geom_line(data = player.one.gps.model, # player potential
+            aes(x = splits, y = model.speed),
+            size = 2,
+            colour ="black") + 
+  
+  geom_line(data = player.one.gps.game, # modelled best sprint
+            aes(x = splits, y = model.speed),
+            size = 2,
+            colour = "red") + 
+  
+  xlab("Time (s)") +
+  ylab("Speed (m/s)") +
+  ggtitle("Comparison of Observed, Game, and Modelled Player Sprints")
+
+p1
+```
+
+
+## `sa.` Speed-Acceleration
+
+**Clean and Process**
+
+```{r}
+player.one.sa <- sa.data(player.one$speed, player.one$accel)
+head(player.one.sa)
+```
+
+**Player Profile**
+
+`sa.player.profile()` returns the player's name and their max speed, max acceleration, acceleration constant, number of observations maintained to build the model, and the r^2 values of the linear model. The r^2 can be adjusted by the user. 
+
+```{r}
+player.one.sa.profile <- sa.player.profile(player.name = "Player 1 SA",
+                                           game.data = player.one.sa,
+                                           r2 = 0.95)
+player.one.sa.profile
+```
+
+**Modelling**
+
+`sa.results.model()` returns the player modelled potential sprint ability
+
+```{r}
+player.one.sa.model <- sa.results.model(game.data = player.one.sa,
+                                        r2 = 0.95)
+head(player.one.sa.model)
+```
+
+`sa.results.fitted()` returns the observations onto which the speed-acceleration model is built.
+
+```{r}
+player.one.sa.fitted <- sa.results.fitted(game.data = player.one.sa,
+                                          r2 = 0.95)
+head(player.one.sa.fitted)
+```
+
+
+`sa.results.observed()` returns the observations that met inclusion criteria for the model, before fitting the linear model.
+
+```{r}
+player.one.sa.observed <- sa.results.observed(game.data = player.one.sa)
+head(player.one.sa.observed)
+```
+
+**Plotting**
+
+Below is a sample plot that includes all observations from the original data set in light grey, the observations that met inclusion criteria in dark grey, the fitted observations in red, and the modelled speed-acceleration observations as the linear model.
+
+```{r, fig.height=5, fig.width=7, fig.align='center'}
+p1 <- ggplot(data = player.one.sa, 
+             aes(x = game.speed, y = game.accel)) +
+  
+  geom_point(colour = "grey", # all player observations 
+             alpha = 0.25) + 
+  
+  geom_point(data = player.one.sa.observed, # observations that met inclusion criteria
+             colour = "black") + 
+  
+  geom_point(data = player.one.sa.fitted, # fitted observations
+             colour = "red") + 
+  
+  geom_line(data = player.one.sa.model, 
+            colour = "red", 
+            size = 2) +
+  
+  xlab("Speed (m/s)") +
+  ylab("Acceleration (m/s/s))") +
+  ggtitle("Observed, Fitted, and Modelled Player Speed-Acceleration Observations")
+
+p1
+```
+
+## `scout.` Sprint Test
+
+**Clean and Process**
+
+```{r}
+player.one.scout <- scout.data(distance = player.forty$distance, 
+                               split.time = player.forty$split.time)
+head(player.one.scout)
+```
+
+**Player Profile**
+
+`scout.player.profile()` returns the player's name and their potential max speed, max acceleration, and acceleration constant.
+
+```{r}
+player.one.scout.profile <- scout.player.profile(player.name = "Player 1 SCOUT",
+                                                 sprint.data = player.one.scout)
+player.one.scout.profile
+```
+
+**Modelling**
+
+`scout.results.model()` returns the player modelled potential sprint ability over time and distance.
+
+```{r}
+player.one.scout.model <- scout.results.model(sprint.data = player.one.scout)
+head(player.one.scout.model)
+```
+
+**Plotting**
+
+Below is a sample plot that fits modelled speed and acceleration over time.
+
+```{r, fig.height=5, fig.width=7, fig.align='center'}
+p1 <- ggplot(data = player.one.scout.model, aes(x = splits)) +
+  
+  geom_point(aes(y = acceleration), 
+             colour = "red", 
+             size = 2) +
+  
+  geom_point(aes(y = model.speed), 
+             colour = "black", 
+             size = 2) +
+  
+  xlab("Time (s)") +
+  ylab("Speed (m/s) and Acceleration (m/s/s)") +
+  ggtitle("Modelled Speed & Acceleration from the 40 yd Dash")
+
+p1
+```
+
+## `fv.` Force-Velocity Jump-Test
+
+The `fv.` family of functions is more complex than those working with player tracking data. This is because the testing data is jump-tests which require information on the player and their testing conditions. The code below uses the `player.jump` data that was generated earlier.
+
+**Clean and Process**
+
+`fv.data.player()` returns a player's anthropomorphic data.
+
+```{r}
+player.one.fv <- fv.data.player(body.mass = 82.4,
+                                lower.limb.length = 1.07,
+                                initial.height = 0.74,
+                                push.off.angle = 90)
+player.one.fv
+```
+
+`fv.data.testing()` returns the player's testing results with some additional analyses. `player.one.jump` in the code chunk below is the same as the one generated above.
+
+```{r}
+player.one.jump <- fv.data.testing(player.data = player.one.fv,
+                                   percent.bw = c(0, 25, 50, 75),
+                                   add.mass = c(0, 20.6, 41.2, 61.8),
+                                   trial.one = c(0.34, 0.29, 0.21, 0.18),
+                                   trial.two = c(0.35, 0.28, 0.19, 0.18),
+                                   trial.three = c(0.34, 0.29, 0.20, 0.17))
+player.one.jump
+```
+
+**Player Profile**
+
+`fv.player.profile()` returns a lot more than the `.player.profile()` functions previously seen. The data set returned contains 24 variables in total.
+
+```{r}
+player.one.fv.profile <- fv.player.profile(player.name = "Player 1 FV", 
+                                           player.data = player.one.fv, 
+                                           testing.data = player.one.jump)
+player.one.fv.profile
+```
+
+**Modelling**
+
+`fv.results.observed()` returns the fitted values from the linear model built from the testing data.
+
+```{r}
+player.one.fv.observed <- fv.results.observed(player.data = player.one.fv, 
+                                              testing.data = player.one.jump)
+head(player.one.fv.observed)
+```
+
+`fv.results.model()` returns the modelled force-velocity observations for 30 and 90 degree push-off angles.
+
+*30 degrees*
+
+```{r}
+player.one.fv.modeled.30 <- fv.results.model(player.data = player.one.fv, 
+                                             testing.data = player.one.jump, 
+                                             push.off.angle = 30)
+head(player.one.fv.modeled.30)
+```
+
+*90 degrees*
+
+```{r}
+player.one.fv.modeled.90 <- fv.results.model(player.data = player.one.fv, 
+                                             testing.data = player.one.jump,
+                                             push.off.angle = 90)
+head(player.one.fv.modeled.90)
+```
+
+
+**Plotting**
+
+Below is a sample plot that fits the observed results and is overlayed by the optimal results for push-off angles of 30 and 90 degrees.
+
+```{r, fig.height=5, fig.width=7, fig.align='center'}
+p1 <- ggplot() +
+  
+  geom_line(data = player.one.fv.observed, # actual results
+            aes(x = velocity, y = force), 
+            colour = "grey",
+            size = 3) +
+  
+  geom_line(data = player.one.fv.modeled.30, # optimal 30 degree push-off angle
+            aes(x = velocity, y = force), 
+            colour = "red",
+            size = 2) + 
+  
+  geom_line(data = player.one.fv.modeled.90, # optimal 90 degree pus-off angle 
+            aes(x = velocity, y = force), 
+            colour = "black",
+            size = 2) + 
+  
+    xlab("Velocity (m/s)") +
+    ylab("Force (N/kg)") +
+    ggtitle("Force-Velocity Relationship from Jump-Tests")
+
+p1
+```
+
+## `fvp.` Force-Velocity-Power
+
+The `fvp.` family of functions returns extensive force-velocity-power analyses. To analyse a player's *fvp* abilities, the user needs to have previously built player profiles from the `gps.`, `sa.`, or `scout.` families. 
+
+For the examples below, the `player.profile` argument will use `player.one.gps.profile` that was created above.
+
+**Clean and Process**
+
+```{r}
+player.one.fvp <- fvp.data.player(player.height = 1.74, 
+                                  body.mass = 115, 
+                                  ambient.temp = 25, 
+                                  air.pressure = 760)
+player.one.fvp
+```
+
+**Player Profile**
+
+`fvp.player.profile()` returns an extensive amount of information on the player for a total of 16 variables.
+
+```{r}
+player.one.fvp.profile <- fvp.player.profile(player.name = "Player 1 FVP", 
+                                             player.data = player.one.fvp, 
+                                             player.profile = player.one.gps.profile)
+player.one.fvp.profile
+```
+
+**Modelling**
+
+`fvp.results.model()` returns the player extensively modelled sprint abilities.
+
+```{r}
+player.one.fvp.model <- fvp.results.model(player.data = player.one.fvp, 
+                                          player.profile = player.one.gps.profile,
+                                          sprint.duration = 5)
+head(player.one.fvp.model)
+```
+
+**Plotting**
+
+Below is a plot that returns a player's force-velocity-power profile on 4 graphs.
+
+```{r,fig.height=5, fig.width=7, fig.align='center'}
+p1 <- ggplot(player.one.fvp.model, aes(x = split.time)) +
+        geom_point(aes(y = speed), colour = "black") +
+        geom_point(aes(y = acceleration), colour = "red") +
+        xlab("Time (s)") +
+        scale_y_continuous("Velocity (m/s)",
+                              sec.axis = sec_axis(~., name = "Acceleration (m/s/s)")) +
+        ggtitle("Speed and Acceleration vs. Time")
+
+p2 <- ggplot(player.one.fvp.model, aes(x = split.time)) +
+        geom_point(aes(y = horizontal.net.force.normalized), colour = "grey") +
+        geom_point(aes(y = speed), colour = "black") +
+        geom_point(aes(y = horizontal.power.normalized/ 2), colour = "blue") +
+        xlab("Time (s)") +
+        scale_y_continuous("Velocity (m/s) \n Force (N/kg)",
+                            sec.axis = sec_axis(~.*2, name = "Power (W/kg)")) +
+        ggtitle("Speed, Force, and Power vs. Time")
+
+p3 <- ggplot(player.one.fvp.model, aes(x = speed)) +
+        geom_point(aes(y = horizontal.net.force.normalized), colour = "grey") +
+        geom_point(aes(y = horizontal.power.normalized/ 2), colour = "blue") +
+        xlab("Velocity (m/s)") +
+        scale_y_continuous("Force (N/kg)",
+                          sec.axis = sec_axis(~.*2, name = "Power (W/kg)")) +
+        ggtitle("Force and Power vs. Speed")
+
+p4 <- ggplot(player.one.fvp.model, aes(x = speed)) +
+        geom_point(aes(y = ratio.of.forces), colour = "orange") +
+        xlab("Velocity (m/s)") +
+        ylab("Ratio of Forces (%)") +
+        xlim(c(0, NA)) +
+        ggtitle("Ratio of Forces vs. Speed")
+```
+
+```{r, fig.height=5, fig.width=7, fig.align='center'}
+p1 + p2 + p3 + p4
+```
+
+## Extending the Package
+
+### Compare Player Abilities
+
+Although the package is built to return modelled outcomes, there are secondary functions that can be useful in comparing athletes. For example, the `compare.player()` functions provide users a simple way of comparing athletes' profiles or split times.
+
+In the code below, the `build.player.profile()` function is used twice to build new player profiles. These profiles are then used to compare the players' abilities.
+
+**Build Profiles**
+
+```{r}
+new.profile.one <- build.player.profile(player.name = "New Profile 1",
+                                        max.speed = 10,
+                                        max.accel = 14)
+new.profile.two <- build.player.profile(player.name = "New Profile 2",
+                                        max.speed = 12,
+                                        max.accel = 9)
+
+new.profile.one; new.profile.two
+```
+
+**Compare Player Profiles**
+
+```{r}
+compare.player.profiles(player.profiles = list(new.profile.one,
+                                               new.profile.two))
+```
+
+**Compare Player Splits**
+
+```{r}
+compare.player.splits(player.profiles = list(new.profile.one,
+                                             new.profile.two),
+                      distance = 9.14) # 10 yard split
+```
+
+### Save Data Sets
+
+To save data sets like player profiles, player data, modelled data, and player comparisons, you can used the `save.as.()` functions. You have the option of saving the data as a Microsoft Excel sheet (.csv) or Rdata file (.rds). The function will return a message after saving the file to your R console.
+
+```{r, eval = FALSE, include = TRUE}
+save.as.excel(data.set = player.one.fvp.model, 
+              file.name = "player one fvp excel")
+
+save.as.csv(data.set = player.one.fvp.model,
+            file.name = "player one fvp csv")
+
+save.as.rds(data.set = player.one.fvp.model,
+            file.name = "player one fvp rds")
+
+#> [1] "player one fvp excel.csv was saved to (your working directory here)"
+```
+
+
+### Mechanical Sprint Abilities
+
+The package also provides the user the ability to model specific sprint abilities. By using a player's profile, the user can return the relationships between speed, acceleration, distance, and time. With the introduction of *midsprint*, many of these functions no longer rely on a player starting with zero velocity. The functions that are accessible include:
+
+```
+speed.time(): a player's speed after a given amount of time
+accel.time(): a player's rate of acceleration after a given amount of time
+distance.time(): the distance reached at max effort after a given amount of time
+distance.speed(): the distance it takes for the player to reach a given speed
+time.speed(): the time it takes to reach a given speed
+time.distance(): the time it takes to reach a given distance
+time.to.position(): the time it takes to reach a given distance while a player is already in motion
+```
+
+You can also call `midsprint()`  for `time.to.position()`
+
+## Citing fvp
+
+When using the fvp package to present and publish, please reference the package by calling the `cite.fvp()` function.
