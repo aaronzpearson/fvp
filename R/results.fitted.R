@@ -32,7 +32,6 @@ results.fitted <- function(game.data,
     sa.player$fit.predict <- y.int + (slope * sa.player$game.speed)
     sa.player$residual <- abs(sa.player$game.accel - sa.player$fit.predict)
     sa.player <- sa.player[order(sa.player$residual), ]
-    # returns df with one less row per loop until loop completes
     sa.player <- head(sa.player, nrow(sa.player) - 1)
     fit <- lm(game.accel ~ game.speed, data = sa.player)
     r.square <- summary(fit)[[8]]
@@ -68,7 +67,6 @@ sa.results.fitted <- function(game.data,
     sa.player$fit.predict <- y.int + (slope * sa.player$game.speed)
     sa.player$residual <- abs(sa.player$game.accel - sa.player$fit.predict)
     sa.player <- sa.player[order(sa.player$residual), ]
-    # returns df with one less row per loop until loop completes
     sa.player <- head(sa.player, nrow(sa.player) - 1)
     fit <- lm(game.accel ~ game.speed, data = sa.player)
     r.square <- summary(fit)[[8]]
