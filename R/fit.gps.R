@@ -41,8 +41,6 @@ best.sprint <- function(game.speed,
 
   game.sprint.data <- subset(game.sprint.data, game.sprint.data$sprint.indicator == 1)
 
-  # if(best.sprint == TRUE) {
-
   game.sprint.data <- subset(game.sprint.data, game.sprint.data$sprint.length == min(game.sprint.data$sprint.length, na.rm = T))
 
   sprint.length <- as.numeric(game.sprint.data$sprint.length)
