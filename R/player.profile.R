@@ -134,7 +134,7 @@ sa.player.profile <- function(player.name = NA,
   sa.player <- data.frame(player.name = player.name,
                           max.speed = x.int,
                           max.accel = y.int,
-                          player.tau = x.int / y.int,
+                          player.tau = y.int/ x.int,
                           r.square = as.numeric(summary(sa.lm)[8]),
                           n.obervation = nrow(sa.player))
 
